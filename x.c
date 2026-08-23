@@ -216,6 +216,7 @@ static int match(uint, uint);
 
 static void run(void);
 static void usage(void);
+static void longopts(int *, char **);
 
 static void (*handler[LASTEvent])(XEvent *) = {
 	[KeyPress] = kpress,
@@ -2678,11 +2679,40 @@ usage(void)
 	die("usage: %s [-aiv] [-c class] [-f font] [-g geometry]"
 	    " [-n name] [-o file]\n"
 	    "          [-T title] [-t title] [-w windowid]"
-	    " [[-e] command [args ...]]\n"
+	    " [--class class] [--title title]\n"
+	    "          [[-e] command [args ...]]\n"
 	    "       %s [-aiv] [-c class] [-f font] [-g geometry]"
 	    " [-n name] [-o file]\n"
-	    "          [-T title] [-t title] [-w windowid] -l line"
-	    " [stty_args ...]\n", argv0, argv0);
+	    "          [-T title] [-t title] [-w windowid]"
+	    " [--class class] [--title title]\n"
+	    "          -l line [stty_args ...]\n", argv0, argv0);
+}
+
+void
+longopts(int *argcp, char *argv[])
+{
+	int i, j;
+
+	argv0 = argv[0];
+	for (i = j = 1; i < *argcp; i++) {
+		if (argv[i][0] != '-' || argv[i][1] == '\0' ||
+		    !strcmp(argv[i], "--") || !strcmp(argv[i], "-e"))
+			break;
+		if (!strncmp(argv[i], "--class=", 8))
+			opt_class = &argv[i][8];
+		else if (!strncmp(argv[i], "--title=", 8))
+			opt_title = &argv[i][8];
+		else if (!strcmp(argv[i], "--class"))
+			opt_class = (i + 1 < *argcp) ? argv[++i] : (usage(), NULL);
+		else if (!strcmp(argv[i], "--title"))
+			opt_title = (i + 1 < *argcp) ? argv[++i] : (usage(), NULL);
+		else
+			argv[j++] = argv[i];
+	}
+	for (; i < *argcp; i++)
+		argv[j++] = argv[i];
+	*argcp = j;
+	argv[j] = NULL;
 }
 
 int
@@ -2691,6 +2721,8 @@ main(int argc, char *argv[])
 	xw.l = xw.t = 0;
 	xw.isfixed = False;
 	xsetcursor(cursorshape);
+
+	longopts(&argc, argv);
 
 	ARGBEGIN {
 	case 'a':
